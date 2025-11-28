@@ -1,0 +1,19 @@
+{
+  "name": "ecmwf-layer-viewer",
+  "version": "1.0.0",
+  "description": "Visualizador interativo web para índices de icing do ECMWF",
+  "scripts": {
+    "generate-config": "python generate_config.py",
+    "serve": "python -m http.server 8000"
+  },
+  "keywords": [
+    "ecmwf",
+    "icing",
+    "geotiff",
+    "visualization",
+    "weather"
+  ],
+  "author": "",
+  "license": "MIT"
+}
+

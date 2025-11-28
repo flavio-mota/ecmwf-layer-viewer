@@ -1,0 +1,33 @@
+[build]
+  # Netlify não precisa de build para este projeto estático
+  publish = "."
+
+[[redirects]]
+  # Redireciona todas as rotas para index.html (SPA)
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[[headers]]
+  # Headers para arquivos de dados (GeoTIFFs)
+  for = "/data/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+    Access-Control-Allow-Origin = "*"
+
+[[headers]]
+  # Headers para arquivos estáticos
+  for = "/*.js"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/*.css"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/*.html"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
