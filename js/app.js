@@ -117,13 +117,14 @@ async function renderLayer() {
   // Renderiza com escala de cores usando Plotty ou fallback
   if (typeof plotty !== "undefined" && plotty.plot) {
     // Usa Plotty se disponível
+    const scaleArray = buildPlottyScale(CONFIG.colorScale || "viridis");
     const plot = new plotty.plot({
       canvas: canvas,
       data: geoData.data,
       width: geoData.width,
       height: geoData.height,
       domain: [0, 1],
-      colorScale: CONFIG.colorScale || "viridis",
+      colorScale: scaleArray,
     });
     plot.render();
   } else {
@@ -214,18 +215,63 @@ function renderPalette(canvas, data, width, height, paletteName = "viridis") {
     return [r, g, b];
   }
 
+  function magmaColor(t) {
+    t = clamp01(t);
+    // Simplified magma approximation
+    const r = Math.floor(50 + 205 * t);
+    const g = Math.floor(10 + 40 * Math.pow(t, 1.3));
+    const b = Math.floor(60 + 70 * (1 - t));
+    return [r, g, b];
+  }
+
+  function plasmaColor(t) {
+    t = clamp01(t);
+    const r = Math.floor(60 + 195 * t);
+    const g = Math.floor(0 + 255 * Math.pow(t, 0.5) * (1 - (1 - t) * 0.3));
+    const b = Math.floor(130 + 80 * (1 - t));
+    return [r, g, b];
+  }
+
+  function turboColor(t) {
+    // Google Turbo approximation
+    t = clamp01(t);
+    const r = Math.floor(34 + 220 * t - 120 * t * (1 - t));
+    const g = Math.floor(31 + 230 * Math.pow(t, 1.2) * (1 - 0.4 * (1 - t)));
+    const b = Math.floor(60 + 240 * (1 - t) - 100 * t * (1 - t));
+    return [r, g, b];
+  }
+
+  function cubehelixColor(t) {
+    // Simple cubehelix-like spiral
+    t = clamp01(t);
+    const angle = 2 * Math.PI * (0.5 + t);
+    const r = Math.floor(255 * clamp01(t + 0.1 * Math.cos(angle)));
+    const g = Math.floor(255 * clamp01(t + 0.1 * Math.cos(angle + 2)));
+    const b = Math.floor(255 * clamp01(t + 0.1 * Math.cos(angle + 4)));
+    return [r, g, b];
+  }
+
   const pickColor = (t) => {
     switch ((paletteName || "").toLowerCase()) {
       case "blues":
         return bluesColor(t);
       case "inferno":
         return infernoColor(t);
+      case "magma":
+        return magmaColor(t);
+      case "plasma":
+        return plasmaColor(t);
+      case "turbo":
+        return turboColor(t);
+      case "cubehelix":
+        return cubehelixColor(t);
       case "viridis":
       default:
         return viridisColor(t);
     }
   };
 
+  const tThresh = getTransparentThreshold();
   for (let i = 0; i < data.length; i++) {
     let v = data[i];
     if (!Number.isFinite(v)) v = 0.0;
@@ -234,7 +280,8 @@ function renderPalette(canvas, data, width, height, paletteName = "viridis") {
     imageData.data[idx] = r;
     imageData.data[idx + 1] = g;
     imageData.data[idx + 2] = b;
-    imageData.data[idx + 3] = 255;
+    // Transparente se valor <= threshold
+    imageData.data[idx + 3] = v <= tThresh ? 0 : 255;
   }
 
   ctx.putImageData(imageData, 0, 0);
@@ -329,25 +376,181 @@ document.addEventListener("DOMContentLoaded", () => {
   renderLayer();
 });
 
+// Helpers de transparência/legenda
+function getTransparentThreshold() {
+  // Threshold de valor para considerar transparente (0..1)
+  const t = Number(
+    (typeof CONFIG !== 'undefined' && (CONFIG.transparentZeroThreshold ?? CONFIG.transparentThreshold)) ?? 0
+  );
+  if (Number.isFinite(t) && t >= 0 && t <= 1) return t;
+  return 0;
+}
+
+function getLegendTransparentPercent() {
+  // Percentual visual da faixa transparente na legenda (0..100)
+  const p = Number(
+    (typeof CONFIG !== 'undefined' && (CONFIG.legendTransparentPercent ?? CONFIG.transparentPercent)) ?? NaN
+  );
+  if (Number.isFinite(p) && p >= 0 && p <= 100) return p;
+  const t = getTransparentThreshold();
+  // Se threshold > 0, usa equivalente em %; senão um valor visual mínimo
+  return t > 0 ? Math.round(t * 100) : 10;
+}
+
 // Atualiza o gradiente da legenda conforme a paleta
 function setLegendGradient(paletteName) {
   const el = document.getElementById("legendScale");
   if (!el) return;
   const name = (paletteName || "viridis").toLowerCase();
-  let gradient;
-  switch (name) {
+
+  // Define cores-chave por paleta (sem transparência)
+  function paletteStops(nm) {
+    switch (nm) {
+      case "blues":
+        return ["#ffffff", "#cfe8ff", "#80bfff", "#3399ff", "#0d47a1"];
+      case "inferno":
+        return ["#000004", "#1f0c48", "#550f6d", "#88226a", "#b6375f", "#e1593a", "#fb9b06", "#fcf000"];
+      case "magma":
+        return ["#000004", "#2c105c", "#731f6f", "#b63679", "#e65461", "#fb8761", "#fec287", "#fbe6c4"];
+      case "plasma":
+        return ["#0d0887", "#5b02a3", "#9a179b", "#cb4679", "#ed7953", "#fb9f3a", "#fdc527", "#f0f921"];
+      case "turbo":
+        return ["#23171b", "#3e1f5a", "#6d40a4", "#9677c3", "#b9b5d2", "#cdd8cc", "#d5e9b2", "#d7f879"];
+      case "cubehelix":
+        return ["#000000", "#27354f", "#226d5c", "#4fa84b", "#d7ce46", "#d88933", "#c74f47", "#ffffff"];
+      case "viridis":
+      default:
+        return ["#440154", "#3b528b", "#21918c", "#5ec962", "#fde725"];
+    }
+  }
+
+  const colors = paletteStops(name);
+  const zeroPct = getLegendTransparentPercent();
+  // Monta gradient com região inicial transparente e depois as cores da paleta
+  const parts = [
+    `rgba(0,0,0,0) 0%`,
+    `rgba(0,0,0,0) ${zeroPct}%`,
+  ];
+  const step = (100 - zeroPct) / (colors.length - 1);
+  colors.forEach((c, i) => {
+    const pos = zeroPct + i * step;
+    parts.push(`${c} ${pos}%`);
+  });
+  const paletteGradient = `linear-gradient(to right, ${parts.join(", ")})`;
+
+  // Checkerboard para indicar transparência por baixo do gradiente
+  const checker = [
+    "linear-gradient(45deg, #eee 25%, transparent 25%)",
+    "linear-gradient(-45deg, #eee 25%, transparent 25%)",
+    "linear-gradient(45deg, transparent 75%, #eee 75%)",
+    "linear-gradient(-45deg, transparent 75%, #eee 75%)",
+  ].join(", ");
+
+  el.style.backgroundImage = `${paletteGradient}, ${checker}`;
+  el.style.backgroundSize = `auto, 10px 10px, 10px 10px, 10px 10px, 10px 10px`;
+  el.style.backgroundPosition = `0 0, 0 0, 5px 5px, 5px 5px`;
+  el.style.backgroundColor = `#ffffff`;
+
+  // Atualiza rótulos conforme threshold
+  const labels = document.querySelectorAll('.legend .legend-labels span');
+  const t = getTransparentThreshold();
+  if (labels && labels.length >= 5) {
+    if (t > 0) {
+      labels[0].textContent = `≤ ${t.toFixed(2)} (transp.)`;
+    } else {
+      labels[0].textContent = '0 (transp.)';
+    }
+    for (let i = 1; i < 5; i++) {
+      const v = t + (i * (1 - t)) / 4;
+      labels[i].textContent = v.toFixed(2);
+    }
+  }
+}
+
+// Constrói escala para Plotty com transparência no zero
+function buildPlottyScale(name) {
+  const n = 12; // número de amostras totais (maior para suavidade)
+  const t = getTransparentThreshold();
+  const k = Math.max(1, Math.round(n * t)); // slots transparentes no início
+  const arr = [];
+  for (let i = 0; i < k; i++) arr.push("#00000000");
+  function sample(fn) {
+    const steps = n - arr.length;
+    for (let i = 1; i <= steps; i++) {
+      const tt = i / steps;
+      const [r, g, b] = fn(tt);
+      const hex =
+        "#" + [r, g, b].map((v) => v.toString(16).padStart(2, "0")).join("");
+      arr.push(hex);
+    }
+  }
+  // Reusa funções já definidas dentro renderPalette? Simples: duplicar lógicas mínimas
+  function viridis(t) {
+    t = Math.max(0, Math.min(1, t));
+    const r = Math.floor(68 + (253 - 68) * (1 - Math.pow(1 - t, 2)));
+    const g = Math.floor(1 + (231 - 1) * (1 - Math.pow(1 - t, 1.5)));
+    const b = Math.floor(84 + (37 - 84) * Math.pow(t, 2));
+    return [r, g, b];
+  }
+  function blues(t) {
+    t = Math.max(0, Math.min(1, t));
+    const r = Math.floor(255 * (1 - t));
+    const g = Math.floor(255 * (1 - t));
+    const b2 = Math.floor(200 + 55 * t);
+    return [r, g, b2];
+  }
+  function inferno(t) {
+    t = Math.max(0, Math.min(1, t));
+    const r = Math.floor(30 + 225 * t);
+    const g = Math.floor(10 + 60 * Math.pow(t, 1.5));
+    const b = Math.floor(30 + 80 * (1 - t));
+    return [r, g, b];
+  }
+  function magma(t) {
+    t = Math.max(0, Math.min(1, t));
+    const r = Math.floor(50 + 205 * t);
+    const g = Math.floor(10 + 40 * Math.pow(t, 1.3));
+    const b = Math.floor(60 + 70 * (1 - t));
+    return [r, g, b];
+  }
+  function plasma(t) {
+    t = Math.max(0, Math.min(1, t));
+    const r = Math.floor(60 + 195 * t);
+    const g = Math.floor(0 + 255 * Math.pow(t, 0.5) * (1 - (1 - t) * 0.3));
+    const b = Math.floor(130 + 80 * (1 - t));
+    return [r, g, b];
+  }
+  function turbo(t) {
+    t = Math.max(0, Math.min(1, t));
+    const r = Math.floor(34 + 220 * t - 120 * t * (1 - t));
+    const g = Math.floor(31 + 230 * Math.pow(t, 1.2) * (1 - 0.4 * (1 - t)));
+    const b = Math.floor(60 + 240 * (1 - t) - 100 * t * (1 - t));
+    return [r, g, b];
+  }
+  function cubehelix(t) {
+    t = Math.max(0, Math.min(1, t));
+    const angle = 2 * Math.PI * (0.5 + t);
+    const r = Math.floor(255 * Math.max(0, Math.min(1, t + 0.1 * Math.cos(angle))));
+    const g = Math.floor(255 * Math.max(0, Math.min(1, t + 0.1 * Math.cos(angle + 2))));
+    const b = Math.floor(255 * Math.max(0, Math.min(1, t + 0.1 * Math.cos(angle + 4))));
+    return [r, g, b];
+  }
+  switch ((name || "").toLowerCase()) {
     case "blues":
-      // branco → azul
-      gradient = "linear-gradient(to right, #ffffff, #cfe8ff, #80bfff, #3399ff, #0d47a1)";
-      break;
+      sample(blues); break;
     case "inferno":
-      // escuro → laranja/amarelo
-      gradient = "linear-gradient(to right, #000004, #1f0c48, #550f6d, #88226a, #b6375f, #e1593a, #fb9b06, #fcf000)";
-      break;
+      sample(inferno); break;
+    case "magma":
+      sample(magma); break;
+    case "plasma":
+      sample(plasma); break;
+    case "turbo":
+      sample(turbo); break;
+    case "cubehelix":
+      sample(cubehelix); break;
     case "viridis":
     default:
-      gradient = "linear-gradient(to right, #440154, #3b528b, #21918c, #5ec962, #fde725)";
-      break;
+      sample(viridis); break;
   }
-  el.style.background = gradient;
+  return arr;
 }
