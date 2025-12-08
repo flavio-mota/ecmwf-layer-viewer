@@ -36,18 +36,42 @@ function populateControls() {
     levelSelect.appendChild(option);
   });
 
-  // Atualiza steps quando data muda
-  dateSelect.addEventListener("change", updateStepSelect);
-  updateStepSelect();
+  // Atualiza run times quando data muda
+  dateSelect.addEventListener("change", updateRunTimeSelect);
+  
+  // Atualiza steps quando run time muda
+  const runTimeSelect = document.getElementById("runTimeSelect");
+  runTimeSelect.addEventListener("change", updateStepSelect);
+  
+  updateRunTimeSelect();
+}
+
+function updateRunTimeSelect() {
+  const date = document.getElementById("dateSelect").value;
+  const runTimeSelect = document.getElementById("runTimeSelect");
+  runTimeSelect.innerHTML = "";
+
+  if (date && CONFIG.data[date]) {
+    const runTimes = Object.keys(CONFIG.data[date]).sort();
+    runTimes.forEach((runTime) => {
+      const option = document.createElement("option");
+      option.value = runTime;
+      option.textContent = `${runTime}h`;
+      runTimeSelect.appendChild(option);
+    });
+    
+    updateStepSelect();
+  }
 }
 
 function updateStepSelect() {
   const date = document.getElementById("dateSelect").value;
+  const runTime = document.getElementById("runTimeSelect").value;
   const stepSelect = document.getElementById("stepSelect");
   stepSelect.innerHTML = "";
 
-  if (date && CONFIG.data[date]) {
-    const steps = Object.keys(CONFIG.data[date]).sort(
+  if (date && runTime && CONFIG.data[date]?.[runTime]) {
+    const steps = Object.keys(CONFIG.data[date][runTime]).sort(
       (a, b) => Number(a) - Number(b)
     );
     steps.forEach((step) => {
@@ -84,22 +108,23 @@ async function loadGeoTIFF(url) {
 // Renderiza os dados no mapa
 async function renderLayer() {
   const date = document.getElementById("dateSelect").value;
+  const runTime = document.getElementById("runTimeSelect").value;
   const step = document.getElementById("stepSelect").value;
   const level = document.getElementById("levelSelect").value;
 
-  if (!date || !step || !level) return;
+  if (!date || !runTime || !step || !level) return;
 
-  const url = CONFIG.data[date]?.[step]?.[level];
+  const url = CONFIG.data[date]?.[runTime]?.[step]?.[level];
   if (!url) {
-    console.warn("Arquivo não encontrado:", { date, step, level });
-    updateInfo(date, step, level, "Arquivo não encontrado");
+    console.warn("Arquivo não encontrado:", { date, runTime, step, level });
+    updateInfo(date, runTime, step, level, "Arquivo não encontrado");
     return;
   }
 
-  updateInfo(date, step, level, "Carregando...");
+  updateInfo(date, runTime, step, level, "Carregando...");
   const geoData = await loadGeoTIFF(url);
   if (!geoData) {
-    updateInfo(date, step, level, "Erro ao carregar arquivo");
+    updateInfo(date, runTime, step, level, "Erro ao carregar arquivo");
     return;
   }
 
@@ -150,14 +175,15 @@ async function renderLayer() {
   }).addTo(map);
 
   // Atualiza info
-  updateInfo(date, step, level);
+  updateInfo(date, runTime, step, level);
 }
 
 // Atualiza informações exibidas
-function updateInfo(date, step, level, status = null) {
+function updateInfo(date, runTime, step, level, status = null) {
   const info = document.getElementById("currentInfo");
   let html = `
         <strong>Data:</strong> ${formatDate(date)}<br>
+        <strong>Run time:</strong> ${runTime}h<br>
         <strong>Step:</strong> ${step}h<br>
         <strong>Nível:</strong> ${level} hPa
     `;
@@ -357,6 +383,7 @@ document.addEventListener("DOMContentLoaded", () => {
   setLegendGradient(CONFIG.colorScale || "viridis");
 
   document.getElementById("dateSelect").addEventListener("change", renderLayer);
+  document.getElementById("runTimeSelect").addEventListener("change", renderLayer);
   document.getElementById("stepSelect").addEventListener("change", renderLayer);
   document
     .getElementById("levelSelect")

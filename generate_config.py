@@ -11,17 +11,18 @@ from collections import defaultdict
 from datetime import datetime
 
 def parse_tif_filename(filename):
-    """Parse do nome do arquivo TIF para extrair data, step e nível."""
+    """Parse do nome do arquivo TIF para extrair data, run_time (horário), step e nível."""
     # Padrão: icing_20251109T00_step0h_20251109T00_level150hPa.tif
     # Formato: icing_YYYYMMDDTHH_stepXh_YYYYMMDDTHH_levelYhPa.tif
-    pattern = r"icing_(\d{8}T\d{2})_step(\d+)h_\d{8}T\d{2}_level(\d+)hPa\.tif"
+    pattern = r"icing_(\d{8}T(\d{2}))_step(\d+)h_\d{8}T\d{2}_level(\d+)hPa\.tif"
     match = re.match(pattern, filename)
     
     if match:
         date_str = match.group(1)[:8]  # YYYYMMDD (primeira data - forecast time)
-        step = match.group(2)  # step em horas
-        level = match.group(3)  # nível de pressão
-        return date_str, step, level
+        run_time = match.group(2)  # HH (horário do run: 00 ou 12)
+        step = match.group(3)  # step em horas
+        level = match.group(4)  # nível de pressão
+        return date_str, run_time, step, level
     return None
 
 def generate_config(viewer_dir="."):
@@ -37,7 +38,7 @@ def generate_config(viewer_dir="."):
         print(f"   ✓ Diretório criado. Adicione seus GeoTIFFs em {data_path}")
         return
     
-    data_structure = defaultdict(lambda: defaultdict(dict))
+    data_structure = defaultdict(lambda: defaultdict(lambda: defaultdict(dict)))
     
     # Varre todos os arquivos TIF
     tif_files = list(data_path.rglob("*.tif"))
@@ -51,10 +52,10 @@ def generate_config(viewer_dir="."):
     for tif_file in tif_files:
         parsed = parse_tif_filename(tif_file.name)
         if parsed:
-            date, step, level = parsed
+            date, run_time, step, level = parsed
             # Caminho relativo ao index.html
             rel_path = tif_file.relative_to(viewer_path)
-            data_structure[date][step][level] = str(rel_path).replace("\\", "/")
+            data_structure[date][run_time][step][level] = str(rel_path).replace("\\", "/")
         else:
             print(f"⚠️  Arquivo não corresponde ao padrão: {tif_file.name}")
     
@@ -65,18 +66,35 @@ def generate_config(viewer_dir="."):
     # Extrai lista de níveis únicos
     levels = set()
     for date_data in data_structure.values():
-        for step_data in date_data.values():
-            levels.update(step_data.keys())
+        for run_time_data in date_data.values():
+            for step_data in run_time_data.values():
+                levels.update(step_data.keys())
     levels = sorted([int(l) for l in levels], reverse=True)
     
+    # Extrai lista de run_times únicos
+    run_times = set()
+    for date_data in data_structure.values():
+        run_times.update(date_data.keys())
+    run_times = sorted(list(run_times))
+    
     # Gera JavaScript
+    total_files = sum(
+        len(step_data) 
+        for date_data in data_structure.values() 
+        for run_time_data in date_data.values() 
+        for step_data in run_time_data.values()
+    )
+    
     config_js = f"""// Configuração gerada automaticamente por generate_config.py
 // Última atualização: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
-// Total de arquivos: {sum(len(steps) for date in data_structure.values() for steps in date.values())}
+// Total de arquivos: {total_files}
 
 const CONFIG = {{
-    // Estrutura de dados: data -> step -> nível -> caminho do arquivo
+    // Estrutura de dados: data -> run_time (horário) -> step -> nível -> caminho do arquivo
     data: {json.dumps(dict(data_structure), indent=8)},
+    
+    // Horários de run disponíveis (HH)
+    runTimes: {json.dumps(run_times)},
     
     // Níveis de pressão disponíveis (hPa)
     levels: {json.dumps(levels)},
@@ -108,8 +126,9 @@ const CONFIG = {{
     
     print(f"✓ Configuração gerada: {config_file}")
     print(f"  📅 Datas encontradas: {len(data_structure)} - {', '.join(sorted(data_structure.keys()))}")
+    print(f"  🕐 Horários de run: {', '.join(run_times)}")
     print(f"  📊 Níveis: {levels}")
-    print(f"  📁 Total de arquivos: {sum(len(steps) for date in data_structure.values() for steps in date.values())}")
+    print(f"  📁 Total de arquivos: {total_files}")
 
 if __name__ == "__main__":
     import argparse
