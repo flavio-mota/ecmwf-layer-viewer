@@ -2,6 +2,8 @@ let map;
 let currentLayer = null;
 let animationInterval = null;
 let currentStepIndex = 0;
+let currentGeoData = null;
+let currentURL = null;
 
 // Inicializa o mapa
 function initMap() {
@@ -105,6 +107,114 @@ async function loadGeoTIFF(url) {
   }
 }
 
+// Classe para camada dinâmica
+class DynamicCanvasLayer extends L.GridLayer {
+  constructor(geoData, options = {}) {
+    super(options);
+    this.geoData = geoData;
+    this.paletteName = options.paletteName || 'viridis';
+    this.opacity = options.opacity || 1.0;
+    this.tileSize = 256;
+  }
+
+  createTile(coords) {
+    const tile = L.DomUtil.create('canvas', 'leaflet-tile');
+    tile.width = this.tileSize;
+    tile.height = this.tileSize;
+    this.renderTile(tile, coords);
+    return tile;
+  }
+
+  renderTile(canvas, coords) {
+    const ctx = canvas.getContext('2d');
+    const {x, y, z} = coords;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    if (!this.geoData) return;
+
+    const tileBounds = this._tileCoordsToBounds(coords);
+    const geoBunds = [
+      [this.geoData.bbox[1], this.geoData.bbox[0]], // sudoeste
+      [this.geoData.bbox[3], this.geoData.bbox[2]], // nordeste
+    ];
+
+    if (tileBounds.getNorth() < geoBunds[0][0] ||
+        tileBounds.getSouth() > geoBunds[1][0] ||
+        tileBounds.getEast() < geoBunds[0][1] ||
+        tileBounds.getWest() > geoBunds[1][1]) {
+      return; // Tile fora dos dados
+    }
+
+    this.renderDataToTile(ctx, tileBounds, canvas.width, canvas.height);
+  }
+
+  renderDataToTile(ctx, tileBounds, tileWidth, tileHeight) {
+    // Implementação similar à renderLayer, mas adaptada para tiles
+    const {geoData} = this;
+    const palette = getPalette(this.paletteName);
+    const tempCanvas = document.createElement('canvas');
+    tempCanvas.width = tileWidth;
+    tempCanvas.height = tileHeight;
+    const tempCtx = tempCanvas.getContext('2d');
+    const imageData = tempCtx.createImageData(tileWidth, tileHeight);
+
+    const geoWidth = geoData.bbox[2] - geoData.bbox[0];
+    const geoHeight = geoData.bbox[3] - geoData.bbox[1];
+
+    const pixelsPerlon = geoData.width / geoWidth;
+    const pixelsPerlat = geoData.height / geoHeight;
+
+    const tileWest = tileBounds.getWest();
+    const tileEast = tileBounds.getEast();
+    const tileSouth = tileBounds.getSouth();  
+    const tileNorth = tileBounds.getNorth();
+
+    for (let py = 0; py < tileHeight; py++) {
+      for (let px = 0; px < tileWidth; px++) {
+        const lon = tileWest + (px / tileWidth) * (tileEast - tileWest);
+        const lat = tileNorth - (py / tileHeight) * (tileNorth - tileSouth);
+
+        const dataX = Math.floor((lon - geoData.bbox[0]) * pixelsPerlon);
+        const dataY = Math.floor((geoData.bbox[3] - lat) * pixelsPerlat);
+
+        if (dataX >= 0 && dataX < geoData.width && dataY >= 0 && dataY < geoData.height) {
+          const idx = dataY * geoData.width + dataX;
+          const value = geoData.data[idx];
+
+          if (Number.isFinite(value)) {
+            const normalized = Math.max(0, Math.min(1, value)); // Normalização simples
+            const colorIndex = Math.floor(normalized * (palette.length - 1));
+            const [r, g, b] = palette[colorIndex];
+            const pixelIdx = (py * tileWidth + px) * 4;
+            imageData.data[pixelIdx] = r;
+            imageData.data[pixelIdx + 1] = g;
+            imageData.data[pixelIdx + 2] = b;
+            imageData.data[pixelIdx + 3] = value > 0 ? Math.floor(255 * this.opacity) : 0; 
+          }
+        }
+      }
+    }
+    
+    tempCtx.putImageData(imageData, 0, 0);
+    ctx.drawImage(tempCanvas, 0, 0);
+  }
+
+  updateData(geoData) {
+    this.geoData = geoData;
+    this.redraw();  
+  }
+
+  updatePalette(paletteName) {
+    this.paletteName = paletteName;
+    this.redraw();  
+  }
+
+  updateOpacity(opacity) {
+    this.opacity = opacity;
+    this.redraw();  
+  }
+}
+
 // Renderiza os dados no mapa
 async function renderLayer() {
   const date = document.getElementById("dateSelect").value;
@@ -122,60 +232,35 @@ async function renderLayer() {
   }
 
   updateInfo(date, runTime, step, level, "Carregando...");
-  const geoData = await loadGeoTIFF(url);
-  if (!geoData) {
-    updateInfo(date, runTime, step, level, "Erro ao carregar arquivo");
-    return;
-  }
 
-  // Remove camada anterior
-  if (currentLayer) {
-    map.removeLayer(currentLayer);
-  }
+  try {
+    const geoData = await loadGeoTIFF(url);
+    if (!geoData) {
+      updateInfo(date, runTime, step, level, "Erro ao carregar arquivo");
+      return;
+    }
 
-  // Cria canvas com os dados
-  const canvas = document.createElement("canvas");
-  canvas.width = geoData.width;
-  canvas.height = geoData.height;
-  const ctx = canvas.getContext("2d");
+    currentGeoData = geoData;
+    currentURL = url;
 
-  // Renderiza com escala de cores usando Plotty ou fallback
-  if (typeof plotty !== "undefined" && plotty.plot) {
-    // Usa Plotty se disponível
-    const scaleArray = buildPlottyScale(CONFIG.colorScale || "viridis");
-    const plot = new plotty.plot({
-      canvas: canvas,
-      data: geoData.data,
-      width: geoData.width,
-      height: geoData.height,
-      domain: [0, 1],
-      colorScale: scaleArray,
+    if (currentLayer) map.removeLayer(currentLayer);
+
+    // Cria nova camada dinâmica
+    currentLayer = new DynamicCanvasLayer(geoData, {
+      paletteName: CONFIG.colorScale || 'viridis',
+      opacity: document.getElementById("opacitySlider").value / 100,
+      tileSize: 256,
+      maxZoom: CONFIG.map.maxZoom || 18,
+      minZoom: CONFIG.map.minZoom || 2,
     });
-    plot.render();
-  } else {
-    // Fallback: renderização manual com paleta configurável
-    console.warn("Plotty não disponível, usando renderização manual");
-    renderPalette(
-      canvas,
-      geoData.data,
-      geoData.width,
-      geoData.height,
-      CONFIG.colorScale || "viridis"
-    );
+
+    currentLayer.addTo(map);
+    updateInfo(date, runTime, step, level, "Carregado!");
+  
+  } catch (error) {
+    console.error("Erro:", error);
+    updateInfo(date, runTime, step, level, "Erro ao carregar");
   }
-
-  // Adiciona ao mapa
-  const bounds = [
-    [geoData.bbox[1], geoData.bbox[0]], // SW
-    [geoData.bbox[3], geoData.bbox[2]], // NE
-  ];
-
-  currentLayer = L.imageOverlay(canvas.toDataURL(), bounds, {
-    opacity: document.getElementById("opacitySlider").value / 100,
-  }).addTo(map);
-
-  // Atualiza info
-  updateInfo(date, runTime, step, level);
 }
 
 // Atualiza informações exibidas
@@ -580,4 +665,35 @@ function buildPlottyScale(name) {
       sample(viridis); break;
   }
   return arr;
+}
+
+function getPalette(name) {
+  const palettes = {
+    viridis: [
+      [68, 1, 84], [72, 40, 120], [62, 74, 137], [49, 104, 142], [31, 158, 137], [53, 183, 121], [110, 206, 88], [181, 222, 43], [253, 231, 37]
+    ],
+    blues: [
+      [247, 251, 255], [222, 235, 247], [198, 219, 239], [158, 202, 225], [107, 174, 214], [66, 146, 198], [33, 113, 181], [8, 81, 156], [8, 48, 107], [3, 19, 43]
+    ], 
+    inferno: [
+      [0, 0, 4], [31, 12, 72], [85, 15, 109], [136, 34, 106],
+      [186, 55, 95], [225, 89, 58], [249, 155, 6], [252, 207, 0]
+    ],
+    magma: [
+       [0, 0, 4], [28, 16, 68], [79, 28, 106], [129, 38, 110],
+      [181, 53, 91], [229, 82, 60], [251, 135, 97], [252, 192, 159]
+    ],
+    plasma: [
+      [13, 8, 135], [75, 3, 161], [125, 3, 168], [168, 34, 150], [203, 70, 121], [229, 107, 93], [248, 148, 65], [252, 195, 43]
+    ],
+    turbo: [
+      [35, 23, 27], [79, 40, 113], [119, 65, 186], [159, 119, 224], [195, 171, 222], [214, 208, 184], [216, 234, 142], [215, 248, 121]
+    ],
+    cubehelix: [
+      [0, 0, 0], [39, 53, 79], [34, 109, 92], [79, 168, 75],
+      [215, 206, 70], [216, 137, 51], [199, 79, 71], [255, 255, 255]
+    ]
+  };
+  
+  return palettes[name] || palettes['viridis'];
 }
