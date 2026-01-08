@@ -2,6 +2,8 @@ let map;
 let currentLayer = null;
 let animationInterval = null;
 let currentStepIndex = 0;
+let currentLevelIndex = 0;
+let animationType = "levels"; // "levels" ou "steps"
 
 // Inicializa o mapa
 function initMap() {
@@ -315,12 +317,39 @@ function renderPalette(canvas, data, width, height, paletteName = "viridis") {
 
 // Animação
 function startAnimation() {
-  const stepSelect = document.getElementById("stepSelect");
-  const steps = Array.from(stepSelect.options).map((o) => o.value);
-  currentStepIndex = 0;
+  const animationTypeSelect = document.getElementById("animationTypeSelect");
+  animationType = animationTypeSelect.value;
 
   document.getElementById("playBtn").disabled = true;
   document.getElementById("stopBtn").disabled = false;
+
+  if (animationType === "levels") {
+    startLevelsAnimation();
+  } else if (animationType === "steps") {
+    startStepsAnimation();
+  }
+}
+
+function startLevelsAnimation() {
+  const levelSelect = document.getElementById("levelSelect");
+  const levels = Array.from(levelSelect.options).map((o) => o.value);
+  currentLevelIndex = 0;
+
+  animationInterval = setInterval(() => {
+    levelSelect.value = levels[currentLevelIndex];
+    renderLayer();
+
+    currentLevelIndex++;
+    if (currentLevelIndex >= levels.length) {
+      currentLevelIndex = 0; // Loop
+    }
+  }, CONFIG.animation.interval);
+}
+
+function startStepsAnimation() {
+  const stepSelect = document.getElementById("stepSelect");
+  const steps = Array.from(stepSelect.options).map((o) => o.value);
+  currentStepIndex = 0;
 
   animationInterval = setInterval(() => {
     stepSelect.value = steps[currentStepIndex];
@@ -393,6 +422,14 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("opacityValue").textContent = `${e.target.value}%`;
     if (currentLayer) {
       currentLayer.setOpacity(e.target.value / 100);
+    }
+  });
+
+  document.getElementById("animationTypeSelect").addEventListener("change", (e) => {
+    animationType = e.target.value;
+    // Se está animando, reinicia com o novo tipo
+    if (animationInterval) {
+      stopAnimation();
     }
   });
 
