@@ -1088,7 +1088,7 @@ const CONFIG = {
     // Configurações do mapa
     map: {
         center: [-15, -50],  // Centro da América do Sul
-        zoom: 4,
+        zoom: 3,
         maxZoom: 10,
         minZoom: 3
     },
