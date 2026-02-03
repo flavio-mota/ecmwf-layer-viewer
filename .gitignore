@@ -15,5 +15,8 @@ Thumbs.db
 *.log
 
 # Opcionalmente, ignore os dados (se forem muito grandes)
-# data/
 *.tif.aux.xml
+data/
+
+# Arquivos extras
+TODO

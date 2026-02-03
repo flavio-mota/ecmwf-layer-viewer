@@ -1,134 +1,23 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ECMWF Icing Index Viewer</title>
-
-    <!-- Leaflet CSS -->
+    <title>ECMWF Viewer</title>
+    
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            overflow: hidden;
-        }
-
-        #map {
-            width: 100vw;
-            height: 100vh;
-        }
-
-        .controls {
-            position: absolute;
-            top: 10px;
-            left: 60px;
-            z-index: 1000;
-            background: white;
-            padding: 15px;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
-            max-width: 350px;
-        }
-
-        .control-group {
-            margin-bottom: 15px;
-        }
-
-        .control-group label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: 600;
-            font-size: 14px;
-        }
-
-        select,
-        input[type="range"] {
-            width: 100%;
-            padding: 8px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-        }
-
-        .animation-controls {
-            display: flex;
-            gap: 10px;
-            margin-top: 10px;
-        }
-
-        button {
-            flex: 1;
-            padding: 10px;
-            background: #007bff;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 14px;
-        }
-
-        button:hover {
-            background: #0056b3;
-        }
-
-        button:disabled {
-            background: #ccc;
-            cursor: not-allowed;
-        }
-
-        .legend {
-            position: absolute;
-            bottom: 30px;
-            right: 10px;
-            z-index: 1000;
-            background: white;
-            padding: 10px;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
-        }
-
-        .legend-title {
-            font-weight: 600;
-            margin-bottom: 5px;
-            font-size: 12px;
-        }
-
-        .legend-scale {
-            display: flex;
-            height: 20px;
-            width: 200px;
-            border-radius: 3px;
-        }
-
-        .legend-labels {
-            display: flex;
-            justify-content: space-between;
-            margin-top: 5px;
-            font-size: 11px;
-        }
-
-        .info-display {
-            font-size: 13px;
-            color: #666;
-            margin-top: 10px;
-            padding-top: 10px;
-            border-top: 1px solid #eee;
-        }
-    </style>
+    <link rel="stylesheet" href="css/style.css" />
 </head>
-
 <body>
     <div id="map"></div>
 
     <div class="controls">
-        <h3 style="margin-bottom: 15px; color: #333;">Visualizador de Icing</h3>
+        <h3 class="controls-title">ECMWF Viewer</h3>
+
+        <div class="control-group">
+            <label for="paramSelect">Parâmetro:</label>
+            <select id="paramSelect"></select>
+        </div>
 
         <div class="control-group">
             <label for="dateSelect">Data:</label>
@@ -145,22 +34,9 @@
             <select id="stepSelect"></select>
         </div>
 
-        <div class="control-group">
+        <div class="control-group" id="levelGroup">
             <label for="levelSelect">Nível de Pressão (hPa):</label>
             <select id="levelSelect"></select>
-        </div>
-
-        <div class="control-group">
-            <label for="paletteSelect">Paleta de cores:</label>
-            <select id="paletteSelect">
-                <option value="viridis">Viridis</option>
-                <option value="blues">Blues</option>
-                <option value="inferno">Inferno</option>
-                <option value="magma">Magma</option>
-                <option value="plasma">Plasma</option>
-                <option value="turbo">Turbo</option>
-                <option value="cubehelix">Cubehelix</option>
-            </select>
         </div>
 
         <div class="control-group">
@@ -169,10 +45,10 @@
         </div>
 
         <div class="control-group">
-            <label for="animationTypeSelect">Tipo de Animação:</label>
+            <label for="animationTypeSelect">Animação:</label>
             <select id="animationTypeSelect">
-                <option value="levels">Entre Níveis (mesmo step)</option>
-                <option value="steps">Entre Steps (mesmo nível)</option>
+                <option value="steps">Temporal (Steps)</option>
+                <option value="levels">Profundidade (Níveis)</option>
             </select>
         </div>
 
@@ -182,35 +58,19 @@
         </div>
 
         <div class="info-display">
-            <div id="currentInfo">Selecione os parâmetros acima</div>
+            <div id="currentInfo">Inicializando...</div>
         </div>
     </div>
 
     <div class="legend">
-        <div class="legend-title">Índice de Icing</div>
-        <div class="legend-scale" id="legendScale"></div>
-        <div class="legend-labels">
-            <span>0.0</span>
-            <span>0.25</span>
-            <span>0.5</span>
-            <span>0.75</span>
-            <span>1.0</span>
+        <div class="legend-title" id="legendTitle">Legenda</div>
+        <div class="legend-image-container">
+            <img id="wmsLegend" alt="Carregando legenda..." />
         </div>
-        <div style="margin-top: 8px; font-size: 11px; color: #666;">
-            <div>Sem risco → Alto risco</div>
-        </div>
+        <div class="legend-footer">GeoServer WMS</div>
     </div>
 
-    <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <!-- GeoTIFF.js -->
-    <script src="https://cdn.jsdelivr.net/npm/geotiff@2.0.7/dist-browser/geotiff.js"></script>
-    <!-- Plotty.js -->
-    <!-- Plotty.js (use jsDelivr, caminho correto em dist/) -->
-    <script src="https://cdn.jsdelivr.net/npm/plotty@0.4.11/dist/plotty.min.js"></script>
-
-    <script src="js/config.js"></script>
-    <script src="js/app.js"></script>
+    <script type="module" src="js/main.js"></script>
 </body>
-
 </html>
