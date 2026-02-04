@@ -17,6 +17,49 @@ const map = mapManager.init('map');
 const layerManager = new LayerManager(map);
 layerManager.init();
 
+map.on('click', async (e) => {
+  const popup = L.popup({
+    className: 'info-pointer',
+    closeButton: true,
+    autoPan: false
+  }).setLatLng(e.latlng)
+    .setContent('<div class="loading-pulse">Carregando...</div>')
+    .openOn(map);
+
+  const data = await layerManager.getFeatureInfo(e.latlng);
+
+  if (data && data.features && data.features.length > 0) {
+    const props = data.features[0].properties;
+
+    let value = null;
+    const keys = Object.keys(props);
+    if (keys.length > 0) {
+      value = props[keys[0]];
+    }
+
+    if (value !== null) {
+      const formattedValue = typeof value === 'number' ? value.toFixed(1) : value;
+
+      const html = `
+        <div class="pointer-content">
+          <span class="pointer-label">${layerManager.currentParamName}</span>
+          <div class="pointer-value">
+            ${formattedValue}
+          </div>
+          <div class="pointer-coords">
+            ${e.latlng.lat.toFixed(3)}, ${e.latlng.lng.toFixed(3)}
+          </div>
+        </div>
+      `;
+      popup.setContent(html);
+    } else {
+      popup.setContent('Sem dados');
+    }
+  } else {
+    popup.setContent('Sem dados aqui');
+  }
+});
+
 function updateApp(state) {
   if (state.opacity !== undefined) {
     layerManager.setOpacity(state.opacity);

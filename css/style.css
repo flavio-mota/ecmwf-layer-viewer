@@ -140,3 +140,72 @@ button:disabled {
   color: #999;
   text-align: center;
 }
+
+.info-pointer .leaflet-popup-content-wrapper {
+  background: rgba(30, 30, 30, 0.9);
+  color: white;
+  border-radius: 4px;
+  box-shadow: 0 3px 14px rgba(0,0,0,0.4);
+  padding: 0;
+}
+
+.info-pointer .leaflet-popup-tip {
+  background: rgba(30, 30, 30, 0.9);
+}
+
+.info-pointer .leaflet-popup-content {
+  margin: 10px 14px;
+  line-height: 1.4;
+}
+
+.info-pointer a.leaflet-popup-close-button {
+  color: #bbb;
+}
+
+.info-pointer a.leaflet-popup-close-button:hover {
+  color: #fff;
+}
+
+.windy-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 100px;
+}
+
+.windy-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #aaa;
+  margin-bottom: 2px;
+}
+
+.windy-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
+}
+
+.windy-coords {
+  margin-top: 5px;
+  font-size: 9px;
+  color: #666;
+  border-top: 1px solid #444;
+  padding-top: 4px;
+  width: 100%;
+  text-align: center;
+}
+
+.loading-pulse {
+  font-size: 12px;
+  color: #ccc;
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0% { opacity: 0.5; }
+  50% { opacity: 1; }
+  100% { opacity: 0.5; }
+}
