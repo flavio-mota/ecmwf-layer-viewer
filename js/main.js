@@ -2,6 +2,7 @@ import { MapManager } from './modules/MapManager.js';
 import { LayerManager } from './modules/LayerManager.js';
 import { UIManager } from './modules/UIManager.js';
 import { AnimationManager } from './modules/AnimationManager.js';
+import { Utils } from './modules/Utils.js';
 import { CONFIG } from './config.js';
 
 const mapManager = new MapManager(CONFIG);
@@ -16,6 +17,17 @@ const map = mapManager.init('map');
 
 const layerManager = new LayerManager(map);
 layerManager.init();
+
+uiManager.setMap(map);
+
+// Restore map position from URL
+const urlState2 = Utils.readURLParams();
+if (urlState2 && (urlState2.lat !== undefined || urlState2.zoom !== undefined)) {
+  const lat = urlState2.lat ?? CONFIG.map.center[0];
+  const lng = urlState2.lng ?? CONFIG.map.center[1];
+  const zoom = urlState2.zoom ?? CONFIG.map.zoom;
+  map.setView([lat, lng], zoom);
+}
 
 map.on('click', async (e) => {
   const popup = L.popup({
@@ -97,6 +109,23 @@ uiManager.init(
         animationManager.stop();
         animationManager.start(value, state);
       }
+    }
+  },
+  {
+    onDownloadTif: () => {
+      layerManager.downloadGeoTIFF(uiManager.getState());
+    },
+    onDownloadSld: () => {
+      layerManager.downloadSLD();
+    },
+    openMetadata: () => {
+      uiManager.toggleModal('metadataModal', true);
+    },
+    openCitation: () => {
+      const state = uiManager.getState();
+      const citation = Utils.generateABNTCitation(state, CONFIG.parameters, window.location.href.split('?')[0]);
+      uiManager.populateCitation(citation);
+      uiManager.toggleModal('citationModal', true);
     }
   }
 );

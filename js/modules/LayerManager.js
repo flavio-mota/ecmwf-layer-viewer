@@ -7,6 +7,7 @@ export class LayerManager {
     this.wmsLayer = null;
     this.currentOpacity = 0.7;
     this.currentParamName = "";
+    this.currentParam = "";
   }
 
   init() {
@@ -29,6 +30,7 @@ export class LayerManager {
     if (!paramConfig) return;
 
     this.currentParamName = paramConfig.name;
+    this.currentParam = parameter;
 
     const fullLayerName = `${CONFIG.geoserver.workspace}:${paramConfig.layerName}`;
 
@@ -134,5 +136,94 @@ export class LayerManager {
       console.error("Erro no GetFeatureInfo:", error);
       return null;
     }
+  }
+
+  downloadGeoTIFF(state) {
+    const paramConfig = CONFIG.parameters[state.parameter];
+    if (!paramConfig) return;
+
+    // 1. Pega os limites da visualização atual do mapa (MBR / Bounding Box)
+    const bounds = this.map.getBounds();
+    const minLat = bounds.getSouth().toFixed(4);
+    const maxLat = bounds.getNorth().toFixed(4);
+    const minLon = bounds.getWest().toFixed(4);
+    const maxLon = bounds.getEast().toFixed(4);
+
+    // 2. Base da URL do WCS (GetCoverage)
+    const wcsUrl = CONFIG.geoserver.url.replace('/wms', '/wcs');
+    const layerName = `${CONFIG.geoserver.workspace}:${paramConfig.layerName}`;
+
+    // Parâmetros obrigatórios
+    let url = `${wcsUrl}?service=WCS&version=2.0.1&request=GetCoverage&coverageId=${layerName}&format=image/tiff`;
+
+    // 3. Adiciona o Subsetting Espacial (O Retângulo na tela)
+    url += `&subset=Lat(${minLat},${maxLat})`;
+    url += `&subset=Long(${minLon},${maxLon})`;
+
+    // 4. Adiciona a dimensão de Tempo (se estiver ativa)
+    const timeISO = Utils.calculateValidTime(state.date, state.runTime, state.step);
+    if (timeISO) {
+        // Atenção: O GeoServer exige que o valor do tempo no WCS esteja entre aspas duplas
+        url += `&subset=time("${timeISO}")`;
+    }
+
+    // 5. Adiciona a dimensão de Nível de Pressão (se aplicável)
+    if (paramConfig.hasLevels && state.level !== null && state.level !== undefined) {
+        url += `&subset=elevation(${state.level})`;
+    }
+
+    console.log("Iniciando download do WCS: ", url);
+
+    // 6. Cria um link invisível e força o download no navegador
+    const a = document.createElement('a');
+    a.href = url;
+
+    // Define um nome bonito para o arquivo com base na camada e tempo
+    const cleanLayer = paramConfig.layerName;
+    const cleanTime = timeISO ? timeISO.split('T')[0] : 'dado';
+    a.download = `${cleanLayer}_${cleanTime}_recorte.tif`;
+
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+
+    // Para consistência com o método anterior, ainda retornamos uma Promise
+    return Promise.resolve();
+  }
+
+  async downloadSLD() {
+    const paramConfig = CONFIG.parameters[this.currentParam];
+    if (!paramConfig || !paramConfig.style) return;
+
+    const styleName = paramConfig.style;
+    const fullLayerName = `${CONFIG.geoserver.workspace}:${paramConfig.layerName}`;
+
+    // WMS GetStyles - endpoint público que retorna o SLD
+    const url = `${CONFIG.geoserver.url}?service=WMS&request=GetStyles&version=1.1.1&layers=${fullLayerName}`;
+
+    try {
+      const resp = await fetch(url);
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const text = await resp.text();
+      if (text.includes('<sld:') || text.includes('<StyledLayerDescriptor') || text.includes('<UserStyle')) {
+        this._triggerDownload(new Blob([text], { type: 'application/xml' }), `${styleName}.xml`);
+        return;
+      }
+    } catch (e) {
+      console.error('Erro ao baixar SLD:', e);
+    }
+
+    alert('Não foi possível acessar o SLD.');
+  }
+
+  _triggerDownload(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   }
 }

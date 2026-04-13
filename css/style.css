@@ -17,16 +17,78 @@ body {
 
 .controls {
   position: absolute;
-  top: 10px;
-  left: 60px;
-  z-index: 1000;
+  top: 80px;
+  left: 10px;
+  z-index: 1100;
   background: white;
-  padding: 15px;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-  width: 300px;
-  max-height: 90vh;
+  padding: 16px;
+  border-radius: 12px;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.18);
+  width: 260px;
+  max-height: 70vh;
   overflow-y: auto;
+  font-size: 14px;
+  border: 1px solid rgba(0,0,0,0.08);
+}
+
+/* Add margin to prevent touching map edge when expanded */
+.controls.expanded {
+  margin-top: 10px;
+}
+
+/* Improve select styling */
+.controls select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 12px;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+}
+
+/* Improve input range slider */
+.controls input[type="range"] {
+  accent-color: #007bff;
+}
+
+/* Improve button hover effects */
+.controls button {
+  transition: all 0.2s ease;
+}
+
+.controls button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+.controls button:active {
+  transform: translateY(0);
+}
+
+/* Improve tools section */
+.tools-section {
+  gap: 10px;
+}
+
+/* Improve legend */
+.legend {
+  bottom: 50px;
+  right: 10px;
+  max-width: 250px;
+}
+
+.legend-title {
+  font-size: 14px;
+  margin-bottom: 10px;
+}
+
+.legend-image-container {
+  margin-bottom: 8px;
+}
+
+.legend-footer {
+  font-size: 10px;
 }
 
 .controls-title {
@@ -208,4 +270,175 @@ button:disabled {
   0% { opacity: 0.5; }
   50% { opacity: 1; }
   100% { opacity: 0.5; }
+}
+
+/* Metadata Bar (pill/notch style) */
+.metadata-bar {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  background: rgba(30, 30, 40, 0.85);
+  backdrop-filter: blur(8px);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 24px;
+  border-radius: 28px;
+  font-size: 13px;
+  font-family: 'Segoe UI', sans-serif;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+  white-space: nowrap;
+  transition: box-shadow 0.2s;
+}
+
+.metadata-bar:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+.metadata-bar-text {
+  font-weight: 600;
+}
+
+.metadata-bar-clickable {
+  font-size: 12px;
+}
+
+.metadata-bar-clickable {
+  cursor: pointer;
+  color: #79c0ff;
+  font-size: 11px;
+  opacity: 0.8;
+  transition: opacity 0.2s;
+}
+
+.metadata-bar-clickable:hover {
+  opacity: 1;
+  text-decoration: underline;
+}
+
+.metadata-dot {
+  color: #555;
+}
+
+/* Modal */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 2000;
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-overlay.active {
+  display: flex;
+}
+
+.modal-card {
+  background: #fff;
+  border-radius: 8px;
+  padding: 24px;
+  max-width: 500px;
+  width: 90%;
+  position: relative;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+}
+
+.modal-card h3 {
+  margin: 0 0 16px 0;
+  color: #2c3e50;
+}
+
+.modal-card p {
+  margin: 6px 0;
+  font-size: 14px;
+  color: #444;
+  line-height: 1.5;
+}
+
+.modal-close {
+  position: absolute;
+  top: 10px;
+  right: 14px;
+  font-size: 24px;
+  cursor: pointer;
+  color: #888;
+  background: none;
+  border: none;
+}
+
+.modal-close:hover {
+  color: #333;
+}
+
+/* Citation */
+#citationText {
+  width: 100%;
+  resize: vertical;
+  padding: 10px;
+  font-size: 13px;
+  font-family: 'Segoe UI', sans-serif;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background: #f9f9f9;
+  margin-bottom: 12px;
+  line-height: 1.4;
+}
+
+.copy-btn {
+  background: #28a745;
+  padding: 8px 16px;
+  font-size: 13px;
+}
+
+.copy-btn:hover {
+  background: #218838;
+}
+
+/* Tools Section */
+.tools-section {
+  margin-top: 15px;
+  padding-top: 10px;
+  border-top: 2px solid #eee;
+  display: flex;
+  gap: 8px;
+}
+
+.tool-btn {
+  flex: 1;
+  padding: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  background: #6c757d;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.tool-btn:hover {
+  background: #545b62;
+}
+
+/* SLD Download Button */
+.sld-download-btn {
+  margin-top: 8px;
+  width: 100%;
+  padding: 5px;
+  font-size: 10px;
+  background: #17a2b8;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.sld-download-btn:hover {
+  background: #138496;
 }

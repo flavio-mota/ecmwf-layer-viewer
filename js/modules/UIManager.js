@@ -17,11 +17,16 @@ export class UIManager {
       playBtn: document.getElementById('playBtn'),
       stopBtn: document.getElementById('stopBtn'),
       legendImg: document.getElementById('wmsLegend'),
-      legendTitle: document.getElementById('legendTitle')
+      legendTitle: document.getElementById('legendTitle'),
+      metadataBarText: document.getElementById('metadataBarText')
     };
+    this.callbacks = {};
+    this.lastMetadataData = null;
   }
 
-  init(onStateChange, onAnimationControl) {
+  init(onStateChange, onAnimationControl, extraCallbacks = {}) {
+    this.callbacks = extraCallbacks;
+
     Object.values(CONFIG.parameters).forEach(p => {
       this.addOption(this.elements.param, p.id, p.name);
     });
@@ -34,9 +39,20 @@ export class UIManager {
       if (l === 850) opt.selected = true;
     });
 
+    // Apply URL params if present
+    const urlState = Utils.readURLParams();
+    if (urlState) {
+      if (urlState.parameter) this.elements.param.value = urlState.parameter;
+      if (urlState.date) this.elements.date.value = urlState.date;
+      if (urlState.runTime) this.elements.runTime.value = urlState.runTime;
+      if (urlState.step) this.elements.step.value = urlState.step;
+      if (urlState.level) this.elements.level.value = urlState.level;
+    }
+
     const handleChange = () => {
       this.updateVisibility();
       onStateChange(this.getState());
+      this.updateURL();
     };
 
     this.elements.param.addEventListener('change', handleChange);
@@ -54,7 +70,54 @@ export class UIManager {
     this.elements.stopBtn.addEventListener('click', () => onAnimationControl('stop'));
     this.elements.animType.addEventListener('change', (e) => onAnimationControl('type', e.target.value));
 
+    // Extra callbacks
+    if (extraCallbacks.onDownloadTif) {
+      document.getElementById('downloadTifBtn')?.addEventListener('click', () => extraCallbacks.onDownloadTif());
+    }
+    if (extraCallbacks.onDownloadSld) {
+      document.getElementById('downloadSldBtn')?.addEventListener('click', () => extraCallbacks.onDownloadSld());
+    }
+    if (extraCallbacks.openMetadata) {
+      document.getElementById('metadataBarClick')?.addEventListener('click', () => extraCallbacks.openMetadata());
+    }
+    if (extraCallbacks.openCitation) {
+      document.getElementById('openCitationBtn')?.addEventListener('click', () => extraCallbacks.openCitation());
+    }
+
     this.updateVisibility();
+    this.initModalHandlers();
+  }
+
+  initModalHandlers() {
+    // Close modals when clicking outside (on overlay)
+    ['metadataModal', 'citationModal'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.addEventListener('click', (e) => {
+          if (e.target === el) {
+            this.toggleModal(id, false);
+          }
+        });
+      }
+    });
+
+    // Wire close buttons to the handlers stored in this._modalHandlers
+    document.getElementById('closeMetadataModal')?.addEventListener('click', () => {
+      this.toggleModal('metadataModal', false);
+    });
+    document.getElementById('closeCitationModal')?.addEventListener('click', () => {
+      this.toggleModal('citationModal', false);
+    });
+    document.getElementById('copyCitationBtn')?.addEventListener('click', () => {
+      const el = document.getElementById('citationText');
+      if (el) {
+        navigator.clipboard.writeText(el.value).then(() => {
+          const btn = document.getElementById('copyCitationBtn');
+          if (btn) btn.textContent = 'Copiado!';
+          setTimeout(() => { if (btn) btn.textContent = 'Copiar'; }, 2000);
+        });
+      }
+    });
   }
 
   updateVisibility() {
@@ -97,6 +160,15 @@ export class UIManager {
     };
   }
 
+  getStateWithMapInfo(map) {
+    const center = map.getCenter();
+    const state = this.getState();
+    state.lat = center.lat;
+    state.lng = center.lng;
+    state.zoom = map.getZoom();
+    return state;
+  }
+
   setState(state) {
     if (state.step) this.elements.step.value = state.step;
     if (state.level) this.elements.level.value = state.level;
@@ -121,5 +193,63 @@ export class UIManager {
       this.elements.legendImg.src = data.legendUrl;
       this.elements.legendTitle.textContent = data.paramName;
     }
+
+    this.updateMetadataBar(data);
+  }
+
+  updateMetadataBar(data) {
+    this.lastMetadataData = data;
+    this._renderMetadataBar();
+  }
+
+  _renderMetadataBar(data) {
+    const d = this.lastMetadataData;
+    if (!d || !this.elements.metadataBarText) return;
+    const state = this.getState();
+    const paramConfig = CONFIG.parameters[state.parameter];
+    const level = paramConfig?.hasLevels ? ` ${state.level}hPa |` : '';
+    let mapInfo = '';
+    if (this.map) {
+      const c = this.map.getCenter();
+      mapInfo = `${c.lat.toFixed(2)}, ${c.lng.toFixed(2)} | z${this.map.getZoom()} |`;
+    }
+    this.elements.metadataBarText.innerHTML = `ECMWF Viewer <span class="metadata-dot">&middot;</span> ${d.paramName} |${level} <span class="metadata-dot">&middot;</span> ${mapInfo} <span class="metadata-dot">&middot;</span> step +${state.step}h`;
+  }
+
+  updateURL() {
+    const state = this.getState();
+    if (this.map) {
+      const center = this.map.getCenter();
+      state.lat = center.lat;
+      state.lng = center.lng;
+      state.zoom = this.map.getZoom();
+    }
+    const qs = Utils.buildURLParams(state);
+    if (qs) {
+      history.replaceState(null, '', '?' + qs);
+    }
+  }
+
+  setMap(map) {
+    this.map = map;
+    this.map.on('moveend', () => {
+      this._renderMetadataBar();
+      this.updateURL();
+    });
+  }
+
+  toggleModal(modalId, show) {
+    const el = document.getElementById(modalId);
+    if (!el) return;
+    if (show) {
+      el.classList.add('active');
+    } else {
+      el.classList.remove('active');
+    }
+  }
+
+  populateCitation(text) {
+    const el = document.getElementById('citationText');
+    if (el) el.value = text;
   }
 }

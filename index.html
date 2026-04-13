@@ -11,6 +11,11 @@
 <body>
     <div id="map"></div>
 
+    <div id="metadataBar" class="metadata-bar">
+        <span id="metadataBarText" class="metadata-bar-text">ECMWF Viewer</span>
+        <span id="metadataBarClick" class="metadata-bar-clickable">Detalhes</span>
+    </div>
+
     <div class="controls">
         <h3 class="controls-title">ECMWF Viewer</h3>
 
@@ -60,6 +65,11 @@
         <div class="info-display">
             <div id="currentInfo">Inicializando...</div>
         </div>
+
+        <div class="tools-section">
+            <button id="downloadTifBtn" class="tool-btn">Download TIF</button>
+            <button id="openCitationBtn" class="tool-btn">Citação ABNT</button>
+        </div>
     </div>
 
     <div class="legend">
@@ -68,6 +78,30 @@
             <img id="wmsLegend" alt="Carregando legenda..." />
         </div>
         <div class="legend-footer">GeoServer WMS</div>
+        <button id="downloadSldBtn" class="sld-download-btn">Baixar SLD</button>
+    </div>
+
+    <div id="metadataModal" class="modal-overlay">
+        <div class="modal-card">
+            <span class="modal-close" id="closeMetadataModal">&times;</span>
+            <h3>Metadados</h3>
+            <p><strong>Projeto:</strong> ECMWF Viewer</p>
+            <p><strong>Dados:</strong> ECMWF Icing, Wind, Rain via GeoServer</p>
+            <p><strong>Resolução:</strong> ~27km (ECMWF)</p>
+            <p><strong>Área:</strong> LATAM (América Latina)</p>
+            <p><strong>Licença:</strong> MIT</p>
+            <p><strong>Fonte:</strong> Centro Europeu de Previsão do Tempo de Médio Prazo (ECMWF)</p>
+            <p><strong>Engine:</strong> GeoServer WMS/WCS</p>
+        </div>
+    </div>
+
+    <div id="citationModal" class="modal-overlay">
+        <div class="modal-card">
+            <span class="modal-close" id="closeCitationModal">&times;</span>
+            <h3>Citação ABNT</h3>
+            <textarea id="citationText" readonly rows="5"></textarea>
+            <button id="copyCitationBtn" class="copy-btn">Copiar</button>
+        </div>
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
