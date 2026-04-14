@@ -90,7 +90,7 @@ export class UIManager {
 
   initModalHandlers() {
     // Close modals when clicking outside (on overlay)
-    ['metadataModal', 'citationModal'].forEach(id => {
+    ['metadataModal', 'citationModal', 'meteogramModal'].forEach(id => {
       const el = document.getElementById(id);
       if (el) {
         el.addEventListener('click', (e) => {
@@ -107,6 +107,9 @@ export class UIManager {
     });
     document.getElementById('closeCitationModal')?.addEventListener('click', () => {
       this.toggleModal('citationModal', false);
+    });
+    document.getElementById('closeMeteogramModal')?.addEventListener('click', () => {
+      this.toggleModal('meteogramModal', false);
     });
     document.getElementById('copyCitationBtn')?.addEventListener('click', () => {
       const el = document.getElementById('citationText');

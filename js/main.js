@@ -20,6 +20,9 @@ layerManager.init();
 
 uiManager.setMap(map);
 
+// Variável global para a instância do gráfico do meteograma
+let meteogramChartInstance = null;
+
 // Restore map position from URL
 const urlState2 = Utils.readURLParams();
 if (urlState2 && (urlState2.lat !== undefined || urlState2.zoom !== undefined)) {
@@ -61,6 +64,9 @@ map.on('click', async (e) => {
           <div class="pointer-coords">
             ${e.latlng.lat.toFixed(3)}, ${e.latlng.lng.toFixed(3)}
           </div>
+          <button class="tool-btn" style="margin-top: 10px; width: 100%;" onclick="window.openMeteogram(${e.latlng.lat}, ${e.latlng.lng})">
+             📊 Meteograma
+          </button>
         </div>
       `;
       popup.setContent(html);
@@ -71,6 +77,75 @@ map.on('click', async (e) => {
     popup.setContent('Sem dados aqui');
   }
 });
+
+// Função global para desenhar o meteograma ao clicar no botão do popup
+window.openMeteogram = async (lat, lng) => {
+  const state = uiManager.getState();
+  const paramConfig = CONFIG.parameters[state.parameter];
+
+  // Fecha o popup do mapa e abre o modal do meteograma
+  map.closePopup();
+  uiManager.toggleModal('meteogramModal', true);
+  
+  const titleEl = document.getElementById('meteogramTitle');
+  if (titleEl) {
+    titleEl.innerHTML = `<span class="loading-pulse">A extrair série temporal...</span>`;
+  }
+
+  // Se já existir um gráfico, destrói para renderizar um novo sem sobreposição
+  if (meteogramChartInstance) {
+    meteogramChartInstance.destroy();
+  }
+
+  // Vai buscar os dados através da nova função no LayerManager
+  const seriesData = await layerManager.getMeteogramData(state, lat, lng);
+
+  // Prepara os dados (Labels: steps, Values: valores retornados)
+  const labels = seriesData.map(d => `+${d.step}h`);
+  const values = seriesData.map(d => d.value);
+
+  if (titleEl) {
+    titleEl.textContent = `Meteograma: ${paramConfig.name} (${lat.toFixed(2)}, ${lng.toFixed(2)})`;
+  }
+
+  // Renderiza o gráfico
+  const ctx = document.getElementById('meteogramChart').getContext('2d');
+  meteogramChartInstance = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: paramConfig.name,
+        data: values,
+        borderColor: '#007bff',
+        backgroundColor: 'rgba(0, 123, 255, 0.1)',
+        borderWidth: 2,
+        pointBackgroundColor: '#007bff',
+        pointRadius: 4,
+        pointHoverRadius: 6,
+        fill: true,
+        tension: 0.3,
+        spanGaps: true
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false }
+      },
+      scales: {
+        y: {
+          beginAtZero: false,
+          title: { display: true, text: paramConfig.name }
+        },
+        x: {
+          title: { display: true, text: 'Forecast Step' }
+        }
+      }
+    }
+  });
+};
 
 function updateApp(state) {
   if (state.opacity !== undefined) {

@@ -104,7 +104,17 @@
         </div>
     </div>
 
+    <div id="meteogramModal" class="modal-overlay">
+    <div class="modal-card meteogram-card">
+        <span class="modal-close" id="closeMeteogramModal">&times;</span>
+        <h3 id="meteogramTitle">Meteograma</h3>
+        <div class="chart-container" style="position: relative; height:40vh; width:100%">
+            <canvas id="meteogramChart"></canvas>
+        </div>
+    </div>
+
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script type="module" src="js/main.js"></script>
 </body>
 </html>

@@ -94,7 +94,7 @@ export class LayerManager {
 
     const sw = bounds.getSouthWest();
     const ne = bounds.getNorthEast();
-    
+
     // Projeção EPSG:3857 (Web Mercator)
     const crs = L.CRS.EPSG3857;
     const swProj = crs.project(sw);
@@ -163,13 +163,12 @@ export class LayerManager {
     // 4. Adiciona a dimensão de Tempo (se estiver ativa)
     const timeISO = Utils.calculateValidTime(state.date, state.runTime, state.step);
     if (timeISO) {
-        // Atenção: O GeoServer exige que o valor do tempo no WCS esteja entre aspas duplas
-        url += `&subset=time("${timeISO}")`;
+      url += `&subset=time("${timeISO}")`;
     }
 
     // 5. Adiciona a dimensão de Nível de Pressão (se aplicável)
     if (paramConfig.hasLevels && state.level !== null && state.level !== undefined) {
-        url += `&subset=elevation(${state.level})`;
+      url += `&subset=elevation(${state.level})`;
     }
 
     console.log("Iniciando download do WCS: ", url);
@@ -226,4 +225,84 @@ export class LayerManager {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   }
+
+  async getMeteogramData(state, lat, lng) {
+    const paramConfig = CONFIG.parameters[state.parameter];
+    const fullLayerName = `${CONFIG.geoserver.workspace}:${paramConfig.layerName}`;
+
+    // Precisamos do estado atual do mapa para GetFeatureInfo do WMS
+    const size = this.map.getSize();
+    const bounds = this.map.getBounds();
+    const sw = bounds.getSouthWest();
+    const ne = bounds.getNorthEast();
+
+    const crs = L.CRS.EPSG3857;
+    const swProj = crs.project(sw);
+    const neProj = crs.project(ne);
+    const point = this.map.latLngToContainerPoint(L.latLng(lat, lng));
+
+    // Todos os steps usando WMS GetFeatureInfo
+    const promises = CONFIG.steps.map(async (step) => {
+      const validTimeIso = Utils.calculateValidTime(state.date, state.runTime, step);
+
+      const params = {
+        request: 'GetFeatureInfo',
+        service: 'WMS',
+        srs: 'EPSG:3857',
+        styles: paramConfig.style || '',
+        transparent: true,
+        version: '1.1.0',
+        format: 'image/png',
+        bbox: `${swProj.x},${swProj.y},${neProj.x},${neProj.y}`,
+        height: size.y,
+        width: size.x,
+        layers: fullLayerName,
+        query_layers: fullLayerName,
+        info_format: 'application/json',
+        time: validTimeIso,
+        x: Math.floor(point.x),
+        y: Math.floor(point.y)
+      };
+
+      if (paramConfig.hasLevels && state.level !== null) {
+        params.elevation = state.level;
+      }
+
+      const strParams = new URLSearchParams(params).toString();
+      const url = `${CONFIG.geoserver.url}?${strParams}`;
+
+      try {
+        const response = await fetch(url);
+        if (!response.ok) return { step, time: validTimeIso, value: null };
+
+        // Em vez de .json(), lemos como texto primeiro
+        const text = await response.text();
+
+        // Se o GeoServer devolver um XML (erro de dimensão não encontrada)
+        if (text.trim().startsWith('<')) {
+          return { step, time: validTimeIso, value: null };
+        }
+
+        // Se passar pela verificação, é um JSON válido
+        const data = JSON.parse(text);
+
+        let value = null;
+        if (data && data.features && data.features.length > 0) {
+          const props = data.features[0].properties;
+          const keys = Object.keys(props);
+          if (keys.length > 0) {
+            value = props[keys[0]]; // Extrai o valor do pixel
+          }
+        }
+
+        return { step, time: validTimeIso, value };
+      } catch (e) {
+        return { step, time: validTimeIso, value: null };
+      }
+    });
+
+    // Aguarda que todos os tempos sejam recolhidos (dispara todos ao mesmo tempo)
+    return await Promise.all(promises);
+  }
+
 }

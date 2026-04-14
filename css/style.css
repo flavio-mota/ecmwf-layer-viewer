@@ -442,3 +442,8 @@ button:disabled {
 .sld-download-btn:hover {
   background: #138496;
 }
+
+.meteogram-card {
+  max-width: 800px;
+  width: 95%;
+}
