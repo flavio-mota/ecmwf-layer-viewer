@@ -13,12 +13,123 @@ const animationManager = new AnimationManager(
   (newState) => uiManager.setState(newState)
 );
 
+// Inicializa o mapa e move controles para a direita
 const map = mapManager.init('map');
+map.zoomControl.setPosition('topright');
 
 const layerManager = new LayerManager(map);
 layerManager.init();
 
 uiManager.setMap(map);
+
+// --- Leaflet Draw: seleção de retângulo para download WCS ---
+let drawnRectangle = null;
+let drawnLayerGroup = new L.FeatureGroup();
+map.addLayer(drawnLayerGroup);
+
+const drawControl = new L.Control.Draw({
+  position: 'topright',
+  draw: {
+    polygon: false,
+    polyline: false,
+    circle: false,
+    marker: false,
+    circlemarker: false,
+    rectangle: {
+      shapeOptions: {
+        color: '#007bff',
+        weight: 2,
+        fillOpacity: 0.1
+      }
+    }
+  },
+  edit: {
+    featureGroup: drawnLayerGroup,
+    edit: false,
+    remove: true
+  }
+});
+map.addControl(drawControl);
+
+map.on(L.Draw.Event.CREATED, function (e) {
+  if (drawnRectangle) {
+    drawnLayerGroup.removeLayer(drawnRectangle);
+  }
+  drawnRectangle = e.layer;
+  drawnLayerGroup.addLayer(drawnRectangle);
+});
+
+map.on('draw:deleted', function () {
+  drawnRectangle = null;
+});
+
+// Botão para download WCS
+const controlsDiv = document.querySelector('.tools-section');
+if (controlsDiv) {
+  const wcsBtn = document.createElement('button');
+  wcsBtn.id = 'downloadWcsBtn';
+  wcsBtn.className = 'tool-btn';
+  wcsBtn.textContent = 'Download Recorte (WCS)';
+  controlsDiv.appendChild(wcsBtn);
+
+  wcsBtn.addEventListener('click', async () => {
+    if (!drawnRectangle) {
+      alert('Selecione um retângulo no mapa para baixar o recorte.');
+      return;
+    }
+    // Obtém bounding box em EPSG:4326
+    const bounds = drawnRectangle.getBounds();
+    const bbox = [
+      bounds.getWest(),
+      bounds.getSouth(),
+      bounds.getEast(),
+      bounds.getNorth()
+    ];
+    // Parâmetros atuais
+    const state = uiManager.getState ? uiManager.getState() : {};
+    const param = state.parameter || (CONFIG.parameters ? Object.keys(CONFIG.parameters)[0] : '');
+    const paramConfig = CONFIG.parameters[param];
+    if (!paramConfig) {
+      alert('Parâmetro inválido.');
+      return;
+    }
+    // Monta URL WCS básica (corrigido para Long/Lat)
+    const wcsUrl = `${CONFIG.geoserver.url}?service=WCS&version=2.0.1&request=GetCoverage` +
+      `&coverageId=${CONFIG.geoserver.workspace}:${paramConfig.layerName}` +
+      `&format=image/tiff` +
+      `&subset=Long(${bbox[0]},${bbox[2]})` +
+      `&subset=Lat(${bbox[1]},${bbox[3]})`;
+    // Adiciona tempo e nível se aplicável
+    const validTime = state.date && state.runTime && state.step ?
+      Utils.calculateValidTime(state.date, state.runTime, state.step) : null;
+    let url = wcsUrl;
+    if (validTime) url += `&subset=time(\"${validTime}\")`;
+    if (paramConfig.hasLevels && state.level) url += `&subset=elevation(${state.level})`;
+
+    // Nome descritivo para o arquivo
+    const paramName = paramConfig.layerName || param;
+    const dateStr = validTime ? validTime.split('T')[0] : 'data';
+    const levelStr = state.level ? `_lev${state.level}` : '';
+    const bboxStr = `_bbox${bbox.map(v => v.toFixed(3)).join('_')}`;
+    const filename = `${paramName}_${dateStr}${levelStr}${bboxStr}_recorte.tif`;
+
+    // Download via fetch + Blob
+    try {
+      const resp = await fetch(url);
+      if (!resp.ok) throw new Error('Erro ao baixar arquivo WCS');
+      const blob = await resp.blob();
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    } catch (e) {
+      alert('Erro ao baixar recorte WCS.');
+    }
+  });
+}
 
 // Variável global para a instância do gráfico do meteograma
 let meteogramChartInstance = null;

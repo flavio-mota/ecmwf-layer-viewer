@@ -177,10 +177,11 @@ export class LayerManager {
     const a = document.createElement('a');
     a.href = url;
 
-    // Define um nome bonito para o arquivo com base na camada e tempo
-    const cleanLayer = paramConfig.layerName;
-    const cleanTime = timeISO ? timeISO.split('T')[0] : 'dado';
-    a.download = `${cleanLayer}_${cleanTime}_recorte.tif`;
+
+    // Nome descritivo para o arquivo
+    const levelStr = state.level ? `_lev${state.level}` : '';
+    const bboxStr = `_bbox${minLon}_${minLat}_${maxLon}_${maxLat}`;
+    a.download = `${paramConfig.layerName}_${timeISO ? timeISO.split('T')[0] : 'data'}${levelStr}${bboxStr}_recorte.tif`;
 
     document.body.appendChild(a);
     a.click();
@@ -205,7 +206,8 @@ export class LayerManager {
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
       const text = await resp.text();
       if (text.includes('<sld:') || text.includes('<StyledLayerDescriptor') || text.includes('<UserStyle')) {
-        this._triggerDownload(new Blob([text], { type: 'application/xml' }), `${styleName}.xml`);
+        const layerName = paramConfig.layerName || 'layer';
+        this._triggerDownload(new Blob([text], { type: 'application/xml' }), `${layerName}_${styleName}.sld.xml`);
         return;
       }
     } catch (e) {
