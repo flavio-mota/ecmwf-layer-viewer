@@ -5,7 +5,9 @@
 }
 
 body {
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: var(--bg);
+  color: var(--text);
   overflow: hidden;
 }
 
@@ -13,6 +15,15 @@ body {
   width: 100vw;
   height: 100vh;
   background: #e5e5e5;
+}
+:root{
+  --bg: #f6f8fa;
+  --panel-bg: rgba(255,255,255,0.95);
+  --muted: #64748b;
+  --text: #0f172a;
+  --accent: #2563eb;
+  --panel-border: #e0e7ef;
+  --glass: rgba(255,255,255,0.6);
 }
 
 .controls {
@@ -61,21 +72,24 @@ body {
   transform: translateY(-2px);
   box-shadow: 0 4px 8px rgba(0,0,0,0.15);
 }
-
-.controls button:active {
-  transform: translateY(0);
+/* Small utility elements */
+.opacity-value {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent);
+  background: rgba(37,99,235,0.08);
+  border-radius: 8px;
+  padding: 2px 10px;
+  display: inline-block;
 }
 
-/* Improve tools section */
-.tools-section {
-  gap: 10px;
-}
-
-/* Improve legend */
-.legend {
-  bottom: 50px;
-  right: 10px;
-  max-width: 250px;
+.info-display {
+  margin-top: 15px;
+  padding-top: 10px;
+  border-top: 1px solid #eee;
+  font-size: 12px;
+  color: #666;
+  line-height: 1.4;
 }
 
 .legend-title {
@@ -145,20 +159,6 @@ button {
 
 button:hover {
   background: #0056b3;
-}
-
-button:disabled {
-  background: #ccc;
-  cursor: not-allowed;
-}
-
-.info-display {
-  margin-top: 15px;
-  padding-top: 10px;
-  border-top: 1px solid #eee;
-  font-size: 12px;
-  color: #666;
-  line-height: 1.4;
 }
 
 .legend {
@@ -258,6 +258,101 @@ button:disabled {
   padding-top: 4px;
   width: 100%;
   text-align: center;
+}
+
+/* Custom Leaflet control styling to match app buttons */
+.leaflet-bar.custom-draw-control {
+  border-radius: 8px;
+  overflow: visible;
+  background: rgba(255,255,255,0.95);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.12);
+  border: 1px solid var(--panel-border);
+  padding: 6px;
+}
+
+.leaflet-bar.custom-draw-control .tool-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  margin: 4px 0;
+  background: #4b5563; /* slate-600 */
+  color: #fff;
+  border-radius: 8px;
+  text-decoration: none;
+  border: 1px solid rgba(0,0,0,0.06);
+}
+
+.leaflet-bar.custom-draw-control .tool-btn svg {
+  stroke: #fff;
+}
+
+/* hide default Leaflet Draw editing markers (we use custom resize/move) */
+.leaflet-editing-icon,
+.leaflet-control-edit a { display: none !important; }
+
+.leaflet-bar.custom-draw-control .tool-btn:hover {
+  transform: translateY(-2px);
+  background: #374151; /* darker slate */
+}
+
+.leaflet-bar.custom-draw-control .tool-btn.disabled {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+/* Smaller variant (horizontal) if user prefers compact layout) */
+.leaflet-bar.custom-draw-control.horizontal {
+  flex-direction: row;
+}
+
+/* Make the Leaflet zoom control match the custom button style */
+.leaflet-control-zoom {
+  border-radius: 8px;
+  overflow: visible;
+  background: rgba(255,255,255,0.95);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.12);
+  border: 1px solid var(--panel-border);
+  padding: 6px;
+}
+
+.leaflet-control-zoom a {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  margin: 4px 0;
+  background: #4b5563;
+  color: #fff;
+  border-radius: 8px;
+  text-decoration: none;
+  border: 1px solid rgba(0,0,0,0.06);
+}
+
+.leaflet-control-zoom a svg { stroke: #fff; }
+
+.leaflet-control-zoom a:hover {
+  transform: translateY(-2px);
+  background: #374151;
+}
+
+.leaflet-control-zoom a.leaflet-disabled {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+/* Font Awesome icon sizing inside controls */
+.leaflet-bar.custom-draw-control .tool-btn i,
+.leaflet-control-zoom a i {
+  font-size: 16px;
+  line-height: 1;
+}
+
+/* cursor while editing rectangle */
+.leaflet-container.editing-cursor {
+  cursor: move;
 }
 
 .loading-pulse {
