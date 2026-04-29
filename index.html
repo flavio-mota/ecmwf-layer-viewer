@@ -6,117 +6,222 @@
     <title>ECMWF Viewer</title>
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css" />
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    
     <link rel="stylesheet" href="css/style.css" />
 </head>
-<body>
-    <div id="map"></div>
-
-    <div id="metadataBar" class="metadata-bar">
-        <span id="metadataBarText" class="metadata-bar-text">ECMWF Viewer</span>
-        <span id="metadataBarClick" class="metadata-bar-clickable">Detalhes</span>
-    </div>
+<body class="relative w-full h-screen overflow-hidden font-sans text-slate-800 bg-slate-100">
     
-    <!-- Top-right map tools (draw/edit) are provided by a Leaflet control -->
-    <div class="controls">
-        <h3 class="controls-title">ECMWF Viewer</h3>
+    <div id="map" class="absolute inset-0 z-0"></div>
 
-        <div class="control-group">
-            <label for="paramSelect">Parâmetro:</label>
-            <select id="paramSelect"></select>
+    <div class="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] flex items-center bg-slate-800/95 backdrop-blur shadow-lg rounded-full text-xs font-medium text-slate-200 border border-slate-700/50 p-1 pl-4 pr-1 transition-all whitespace-nowrap overflow-x-auto custom-scrollbar">
+        <div id="metadataBarText" class="flex items-center gap-2 font-bold tracking-wide">
+            ECMWF Viewer
         </div>
+        
+        <button id="metadataBarClick" class="ml-4 flex items-center gap-1.5 bg-slate-700 hover:bg-slate-600 text-white rounded-full px-3 py-1.5 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 shrink-0">
+            <i class="ph ph-info text-sm"></i> Detalhes
+        </button>
+    </div>
 
-        <div class="control-group">
-            <label for="dateSelect">Data:</label>
-            <select id="dateSelect"></select>
-        </div>
+    <div class="absolute top-4 left-4 z-[1000] w-[340px] flex flex-col gap-4">
+        <div class="bg-white/95 backdrop-blur-md shadow-2xl rounded-2xl border border-slate-200/60 overflow-hidden flex flex-col">
+            
+            <div class="bg-slate-50 border-b border-slate-100 px-5 py-4 flex items-center justify-between">
+                <h1 class="text-base font-bold text-slate-800 flex items-center gap-2">
+                    <i class="ph ph-map-trifold text-blue-600 text-lg"></i>
+                    Parâmetros do Mapa
+                </h1>
+            </div>
 
-        <div class="control-group">
-            <label for="runTimeSelect">Horário (run time):</label>
-            <select id="runTimeSelect"></select>
-        </div>
+            <div class="p-5 flex flex-col gap-5 overflow-y-auto max-h-[calc(100vh-180px)] custom-scrollbar">
+                
+                <div class="space-y-3">
+                    <div class="control-group">
+                        <label for="paramSelect" class="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Parâmetro Meteorológico</label>
+                        <div class="relative">
+                            <select id="paramSelect" class="w-full appearance-none bg-slate-50 border border-slate-200 text-slate-800 font-medium rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-blue-500/50 transition-all cursor-pointer"></select>
+                            <i class="ph ph-caret-down absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"></i>
+                        </div>
+                    </div>
 
-        <div class="control-group">
-            <label for="stepSelect">Step (horas):</label>
-            <select id="stepSelect"></select>
-        </div>
+                    <div class="control-group" id="levelGroup">
+                        <label for="levelSelect" class="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Nível de Pressão (hPa)</label>
+                        <div class="relative">
+                            <select id="levelSelect" class="w-full appearance-none bg-slate-50 border border-slate-200 text-slate-800 font-medium rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-blue-500/50 transition-all cursor-pointer"></select>
+                            <i class="ph ph-stack absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"></i>
+                        </div>
+                    </div>
+                </div>
 
-        <div class="control-group" id="levelGroup">
-            <label for="levelSelect">Nível de Pressão (hPa):</label>
-            <select id="levelSelect"></select>
-        </div>
+                <hr class="border-slate-100" />
 
-        <div class="control-group">
-            <label for="opacitySlider">Opacidade: <span id="opacityValue">70%</span></label>
-            <input type="range" id="opacitySlider" min="0" max="100" value="70">
-        </div>
+                <div class="space-y-4">
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="control-group">
+                            <label for="dateSelect" class="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 flex items-center gap-1"><i class="ph ph-calendar"></i> Data</label>
+                            <div class="relative">
+                                <select id="dateSelect" class="w-full appearance-none bg-slate-50 border border-slate-200 text-slate-800 text-sm font-medium rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500/50 transition-all cursor-pointer"></select>
+                            </div>
+                        </div>
+                        <div class="control-group">
+                            <label for="runTimeSelect" class="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 flex items-center gap-1"><i class="ph ph-clock"></i> Horário</label>
+                            <div class="relative">
+                                <select id="runTimeSelect" class="w-full appearance-none bg-slate-50 border border-slate-200 text-slate-800 text-sm font-medium rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500/50 transition-all cursor-pointer"></select>
+                            </div>
+                        </div>
+                    </div>
 
-        <div class="control-group">
-            <label for="animationTypeSelect">Animação:</label>
-            <select id="animationTypeSelect">
-                <option value="steps">Temporal (Steps)</option>
-                <option value="levels">Profundidade (Níveis)</option>
-            </select>
-        </div>
+                    <div class="control-group">
+                        <label for="stepSelect" class="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Step (horas)</label>
+                        <div class="flex items-center gap-2">
+                            <select id="stepSelect" class="flex-1 appearance-none bg-slate-50 border border-slate-200 text-slate-800 font-medium rounded-xl px-4 py-2 outline-none focus:ring-2 focus:ring-blue-500/50 transition-all cursor-pointer"></select>
+                            
+                            <div class="flex bg-slate-100 p-1 rounded-xl gap-1">
+                                <button id="playBtn" class="flex items-center justify-center w-8 h-8 rounded-lg transition-all hover:bg-slate-200 text-blue-600 disabled:opacity-40 bg-white shadow-sm" title="Reproduzir"><i class="ph-fill ph-play text-lg"></i></button>
+                                <button id="stopBtn" disabled class="flex items-center justify-center w-8 h-8 rounded-lg transition-all hover:bg-slate-200 text-slate-600 disabled:opacity-40" title="Pausar"><i class="ph-fill ph-pause text-lg"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
-        <div class="animation-controls">
-            <button id="playBtn">▶ Play</button>
-            <button id="stopBtn" disabled>⏸ Pause</button>
-        </div>
+                <select id="animationTypeSelect" class="hidden">
+                    <option value="steps" selected>Temporal (Steps)</option>
+                    <option value="levels">Profundidade (Níveis)</option>
+                </select>
 
-        <div class="info-display">
-            <div id="currentInfo">Inicializando...</div>
-        </div>
+                <hr class="border-slate-100" />
 
-        <div class="tools-section">
-            <button id="downloadTifBtn" class="tool-btn">Download TIF</button>
-            <button id="openCitationBtn" class="tool-btn">Citação ABNT</button>
+                <div class="space-y-3">
+                    <div class="control-group">
+                        <div class="flex justify-between items-center mb-1.5">
+                            <label for="opacitySlider" class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Opacidade</label>
+                            <span id="opacityValue" class="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">70%</span>
+                        </div>
+                        <input type="range" id="opacitySlider" min="0" max="100" value="70" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600" />
+                    </div>
+                </div>
+                
+                <div id="currentInfo" class="hidden"></div>
+            </div>
+
+            <div class="bg-slate-50/50 border-t border-slate-100 p-4 tools-section">
+                <div class="grid grid-cols-3 gap-2 w-full">
+                    <button id="downloadTifBtn" class="flex flex-col items-center justify-center gap-1 bg-white border border-slate-200 hover:border-blue-300 hover:bg-blue-50 text-slate-600 hover:text-blue-700 rounded-xl py-2 px-1 transition-all group">
+                        <i class="ph ph-file-arrow-down text-base group-hover:-translate-y-0.5 transition-transform"></i>
+                        <span class="text-[10px] font-semibold uppercase tracking-tight">TIF</span>
+                    </button>
+                    <button id="openCitationBtn" class="flex flex-col items-center justify-center gap-1 bg-white border border-slate-200 hover:border-blue-300 hover:bg-blue-50 text-slate-600 hover:text-blue-700 rounded-xl py-2 px-1 transition-all group">
+                        <i class="ph ph-quotes text-base group-hover:-translate-y-0.5 transition-transform"></i>
+                        <span class="text-[10px] font-semibold uppercase tracking-tight">Citação</span>
+                    </button>
+                    <button id="downloadWcsBtn" class="flex flex-col items-center justify-center gap-1 bg-white border border-slate-200 hover:border-blue-300 hover:bg-blue-50 text-slate-600 hover:text-blue-700 rounded-xl py-2 px-1 transition-all group">
+                        <i class="ph ph-download-simple text-base group-hover:-translate-y-0.5 transition-transform"></i>
+                        <span class="text-[10px] font-semibold uppercase tracking-tight">WCS</span>
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 
-    <div class="legend">
-        <div class="legend-title" id="legendTitle">Legenda</div>
-        <div class="legend-image-container">
-            <img id="wmsLegend" alt="Carregando legenda..." />
+    <div class="absolute bottom-6 right-6 z-[1000] w-48 bg-white/95 backdrop-blur-md shadow-2xl rounded-2xl border border-slate-200 overflow-hidden flex flex-col">
+        <div class="p-4 flex-1 flex flex-col items-center">
+            <h4 id="legendTitle" class="text-xs font-bold text-slate-800 uppercase tracking-wider mb-3 text-center">Legenda</h4>
+            <div class="bg-white p-2 rounded-lg border border-slate-100 flex items-center justify-center w-full">
+                <img id="wmsLegend" alt="Carregando legenda..." class="max-w-full h-auto block" />
+            </div>
         </div>
-        <div class="legend-footer">GeoServer WMS</div>
-        <button id="downloadSldBtn" class="sld-download-btn">Baixar SLD</button>
-    </div>
-
-    <div id="metadataModal" class="modal-overlay">
-        <div class="modal-card">
-            <span class="modal-close" id="closeMetadataModal">&times;</span>
-            <h3>Metadados</h3>
-            <p><strong>Projeto:</strong> ECMWF Viewer</p>
-            <p><strong>Dados:</strong> ECMWF Icing, Wind, Rain via GeoServer</p>
-            <p><strong>Resolução:</strong> ~27km (ECMWF)</p>
-            <p><strong>Área:</strong> LATAM (América Latina)</p>
-            <p><strong>Licença:</strong> MIT</p>
-            <p><strong>Fonte:</strong> Centro Europeu de Previsão do Tempo de Médio Prazo (ECMWF)</p>
-            <p><strong>Engine:</strong> GeoServer WMS/WCS</p>
+        <div class="bg-slate-50 p-2 border-t border-slate-100">
+            <div class="text-[9px] text-slate-400 text-center mb-2 uppercase tracking-wide">GeoServer WMS</div>
+            <button id="downloadSldBtn" class="w-full bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-semibold py-1.5 rounded-lg transition-colors">
+                Baixar SLD
+            </button>
         </div>
     </div>
 
-    <div id="citationModal" class="modal-overlay">
-        <div class="modal-card">
-            <span class="modal-close" id="closeCitationModal">&times;</span>
-            <h3>Citação ABNT</h3>
-            <textarea id="citationText" readonly rows="5"></textarea>
-            <button id="copyCitationBtn" class="copy-btn">Copiar</button>
+    <div id="metadataModal" class="hidden modal-overlay absolute inset-0 z-[2000] items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 transition-opacity">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden border border-slate-100">
+            <div class="flex items-center justify-between p-5 border-b border-slate-100 bg-slate-50/50">
+                <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                    <i class="ph ph-gear text-blue-600 text-xl"></i> Metadados do Projeto
+                </h2>
+                <button id="closeMetadataModal" class="text-slate-400 hover:text-red-500 hover:bg-red-50 p-1.5 rounded-xl transition-colors focus:outline-none">
+                    <i class="ph ph-x text-xl"></i>
+                </button>
+            </div>
+            <div class="p-6">
+                <div class="space-y-3">
+                    <div class="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-4 py-2 border-b border-slate-50">
+                        <span class="text-sm font-semibold text-slate-500 w-28 shrink-0">Projeto</span><span class="text-sm text-slate-800">ECMWF Viewer</span>
+                    </div>
+                    <div class="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-4 py-2 border-b border-slate-50">
+                        <span class="text-sm font-semibold text-slate-500 w-28 shrink-0">Dados</span><span class="text-sm text-slate-800">ECMWF Icing, Wind, Rain via GeoServer</span>
+                    </div>
+                    <div class="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-4 py-2 border-b border-slate-50">
+                        <span class="text-sm font-semibold text-slate-500 w-28 shrink-0">Resolução</span><span class="text-sm text-slate-800">~27km (ECMWF)</span>
+                    </div>
+                    <div class="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-4 py-2 border-b border-slate-50">
+                        <span class="text-sm font-semibold text-slate-500 w-28 shrink-0">Área</span><span class="text-sm text-slate-800">LATAM (América Latina)</span>
+                    </div>
+                    <div class="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-4 py-2 border-b border-slate-50">
+                        <span class="text-sm font-semibold text-slate-500 w-28 shrink-0">Licença</span><span class="text-sm text-slate-800">MIT</span>
+                    </div>
+                    <div class="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-4 py-2 border-b border-slate-50">
+                        <span class="text-sm font-semibold text-slate-500 w-28 shrink-0">Fonte</span><span class="text-sm text-slate-800">Centro Europeu de Previsão do Tempo (ECMWF)</span>
+                    </div>
+                    <div class="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-4 py-2">
+                        <span class="text-sm font-semibold text-slate-500 w-28 shrink-0">Motor</span><span class="text-sm text-slate-800">GeoServer WMS/WCS</span>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
-    <div id="meteogramModal" class="modal-overlay">
-    <div class="modal-card meteogram-card">
-        <span class="modal-close" id="closeMeteogramModal">&times;</span>
-        <h3 id="meteogramTitle">Meteograma</h3>
-        <div class="chart-container" style="position: relative; height:40vh; width:100%">
-            <canvas id="meteogramChart"></canvas>
+    <div id="citationModal" class="hidden modal-overlay absolute inset-0 z-[2000] items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 transition-opacity">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden border border-slate-100">
+            <div class="flex items-center justify-between p-5 border-b border-slate-100 bg-slate-50/50">
+                <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                    <i class="ph ph-quotes text-blue-600 text-xl"></i> Citação ABNT
+                </h2>
+                <button id="closeCitationModal" class="text-slate-400 hover:text-red-500 hover:bg-red-50 p-1.5 rounded-xl transition-colors focus:outline-none">
+                    <i class="ph ph-x text-xl"></i>
+                </button>
+            </div>
+            <div class="p-6">
+                <textarea id="citationText" readonly rows="5" class="w-full resize-y p-3 text-sm font-sans border border-slate-200 rounded-xl bg-slate-50 mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500/50"></textarea>
+                <button id="copyCitationBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 rounded-xl text-sm transition-colors flex items-center justify-center gap-2">
+                    <i class="ph ph-copy text-lg"></i> Copiar Citação
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="meteogramModal" class="hidden modal-overlay absolute inset-0 z-[2000] items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 transition-opacity">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden border border-slate-100">
+            <div class="flex items-center justify-between p-5 border-b border-slate-100 bg-slate-50/50">
+                <h2 id="meteogramTitle" class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                    <i class="ph ph-chart-line-up text-blue-600 text-xl"></i> Meteograma
+                </h2>
+                <button id="closeMeteogramModal" class="text-slate-400 hover:text-red-500 hover:bg-red-50 p-1.5 rounded-xl transition-colors focus:outline-none">
+                    <i class="ph ph-x text-xl"></i>
+                </button>
+            </div>
+            <div class="p-6">
+                <div class="relative h-[40vh] w-full">
+                    <canvas id="meteogramChart"></canvas>
+                </div>
+            </div>
         </div>
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css" />
     <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script type="module" src="js/main.js"></script>

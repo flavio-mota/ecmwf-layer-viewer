@@ -64,7 +64,7 @@ function setEditMode(on) {
     // disable custom edit mode
     isEditingCustom = false;
     detachCustomEditHandlers();
-    drawnRectangle.setStyle({ color: '#ff7800', dashArray: null, weight: 3 });
+    drawnRectangle.setStyle({ color: '#2563eb', dashArray: null, weight: 3 });
   }
   updateRectButtonsState();
 }
@@ -195,7 +195,7 @@ const drawControl = new L.Control.Draw({
   position: 'topright',
   draw: {
     rectangle: {
-      shapeOptions: { color: '#ff7800' }
+      shapeOptions: { color: '#2563eb' }
     },
     polygon: false,
     polyline: false,
@@ -214,14 +214,14 @@ map.on(L.Draw.Event.CREATED, (e) => {
   drawnLayerGroup.addLayer(e.layer);
 
   // ensure default style
-  try { drawnRectangle.setStyle({ color: '#ff7800', dashArray: null, weight: 3 }); } catch (e) {}
+  try { drawnRectangle.setStyle({ color: '#2563eb', dashArray: null, weight: 3 }); } catch (e) {}
 
   // clicking the rectangle toggles editing
   drawnRectangle.on('click', (ev) => {
     if (!drawnRectangle) return;
     // prevent the click from bubbling to the map (avoid opening pointer popup)
     try {
-      if (ev && ev.originalEvent) {
+      if (ev.originalEvent) {
         // mark to suppress the next map click and stop DOM propagation
         suppressMapClick = true;
         setTimeout(() => { suppressMapClick = false; }, 50);
@@ -229,12 +229,7 @@ map.on(L.Draw.Event.CREATED, (e) => {
         L.DomEvent.preventDefault(ev.originalEvent);
       }
     } catch (e) {}
-    // toggle custom editing
-    if (isEditingCustom) {
-      setEditMode(false);
-    } else {
-      setEditMode(true);
-    }
+    // Do NOT toggle custom editing here — editing is controlled only by the edit button
   });
 
 
@@ -448,12 +443,8 @@ if (urlState2 && (urlState2.lat !== undefined || urlState2.zoom !== undefined)) 
 
 map.on('click', async (e) => {
   if (suppressMapClick) return;
-  // if custom editing is active, finalize edit on outside click and suppress popup
-  if (isEditingCustom) {
-    // finalize edit and do not open popup for this click
-    setEditMode(false);
-    return;
-  }
+  // While custom editing is active, ignore map clicks. Editing is toggled only via the edit button.
+  if (isEditingCustom) return;
   const popup = L.popup({
     className: 'info-pointer',
     closeButton: true,
